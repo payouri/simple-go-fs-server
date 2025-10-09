@@ -2,12 +2,12 @@ package main
 
 import (
 	"encoding/json"
-	"io"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
-	"simple-fs-web-service/routes/listDirectories"
+	listDirectories "simple-fs-web-service/routes/listDirectories"
+	uploadfile "simple-fs-web-service/routes/uploadFile"
 	"simple-fs-web-service/validators"
 	"strconv"
 	"strings"
@@ -66,69 +66,41 @@ func handleListEndpoint(w http.ResponseWriter, r *http.Request, restSegments []s
 	json.NewEncoder(w).Encode(response)
 }
 
+const MAX_UPLOAD_SIZE = 100 * 1024 * 1024
+
 func handleUploadEndpoint(w http.ResponseWriter, r *http.Request, restSegments []string) {
 	log.Printf("Upload endpoint called")
 	path := strings.Join(restSegments, "/")
 	uploadPath := filepath.Clean(filepath.Join(getBasePath(), path))
-
-	parseFormError := r.ParseMultipartForm(10 * 1024 * 1024)
-	if parseFormError != nil {
-		log.Printf("Error while parsing form: %s", parseFormError.Error())
-		http.Error(w, parseFormError.Error(), http.StatusBadRequest)
-		return
-	}
 	file, fileHeader, fileError := r.FormFile("file")
+
 	if fileError != nil {
 		log.Printf("Error while getting file: %s", fileError.Error())
 		http.Error(w, fileError.Error(), http.StatusBadRequest)
 		return
 	}
-	defer file.Close()
-	fileName := fileHeader.Filename
-	filePath := filepath.Join(uploadPath, fileName)
-	if _, err := os.Stat(filePath); err == nil {
-		log.Printf("File %s already exists", filePath)
-		http.Error(w, "file already exists", http.StatusBadRequest)
-		return
-	}
-	uploadDirStat, err := os.Stat(uploadPath)
-	if err != nil {
-		log.Printf("Error while checking upload path: %s", err.Error())
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	if !uploadDirStat.IsDir() {
-		log.Printf("Upload path is not a directory")
-		http.Error(w, "upload path is not a directory", http.StatusBadRequest)
+
+	if fileHeader.Size > MAX_UPLOAD_SIZE {
+		log.Printf("File too big: %vMB", fileHeader.Size/1024/1024)
+		http.Error(w, "file too big", http.StatusRequestEntityTooLarge)
 		return
 	}
 
-	err = os.MkdirAll(uploadPath, 0755)
-	if err != nil {
-		log.Printf("Error while creating upload path: %s", err.Error())
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	// Créer le fichier de destination
-	dst, err := os.Create(filePath)
-	if err != nil {
-		log.Printf("Error while creating destination file: %s", err.Error())
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	defer dst.Close()
+	saveFileUpload, saveFileUploadError := uploadfile.SaveFileUpload(uploadfile.SaveFileUploadParams{
+		UploadPath: uploadPath,
+		FileHeader: fileHeader,
+		FileData:   file,
+	})
 
-	// Copier le contenu du fichier source vers le fichier de destination
-	_, err = io.Copy(dst, file)
-	if err != nil {
-		log.Printf("Error while copying file: %s", err.Error())
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if saveFileUploadError != nil {
+		log.Printf("Error while processing upload: %s", saveFileUploadError.Error())
+		http.Error(w, saveFileUploadError.Error(), http.StatusBadRequest)
 		return
 	}
 
-	log.Printf("File uploaded successfully to %s", filePath)
+	log.Printf("File uploaded successfully to %s", saveFileUpload.FilePath)
 
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func main() {

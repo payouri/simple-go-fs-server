@@ -9,20 +9,10 @@ import (
 	"path/filepath"
 	arrayFilter "simple-fs-web-service/arrays/filter"
 	"simple-fs-web-service/constants"
+	"simple-fs-web-service/helpers"
 	"slices"
 	"strings"
 )
-
-func getBasePath() string {
-	basePath := os.Getenv("BASE_PATH")
-	homePath := os.Getenv("HOME")
-
-	if basePath == "" {
-		basePath = homePath
-	}
-
-	return basePath
-}
 
 // convertPermissions converts a permission string like "rwxr-xr-x" to a numeric format like 755.
 func permStringToNumeric(permStr string) string {
@@ -103,7 +93,7 @@ func ListDirectory(params ListDirectoryParams) (ListDirectoryResponseSuccess, er
 	if validationResult := isValidDirectoryPath(path); !validationResult {
 		return ListDirectoryResponseSuccess{}, errors.New("invalid path")
 	}
-	fsStat, lStatError := fs.Lstat(os.DirFS(getBasePath()), path)
+	fsStat, lStatError := fs.Lstat(os.DirFS(helpers.GetBasePath()), path)
 
 	if lStatError != nil {
 		return ListDirectoryResponseSuccess{}, lStatError
@@ -115,7 +105,7 @@ func ListDirectory(params ListDirectoryParams) (ListDirectoryResponseSuccess, er
 
 	var files = make([]SerializableFile, 0)
 
-	entries, readDirError := fs.ReadDir(os.DirFS(getBasePath()), path)
+	entries, readDirError := fs.ReadDir(os.DirFS(helpers.GetBasePath()), path)
 	if readDirError != nil {
 		return ListDirectoryResponseSuccess{}, errors.New("error while listing directory")
 	}
