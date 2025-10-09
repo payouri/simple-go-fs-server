@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"simple-fs-web-service/auth"
 	listDirectories "simple-fs-web-service/routes/listDirectories"
 	uploadfile "simple-fs-web-service/routes/uploadFile"
 	"simple-fs-web-service/validators"
@@ -119,12 +120,13 @@ func main() {
 		without, _ := strings.CutPrefix(requestPath, "/")
 		segments := strings.Split(without, "/")
 		firstSegment := segments[0]
+		restSegments := segments[1:]
 		switch method {
 		case http.MethodGet:
 			switch firstSegment {
 			case "list":
-				restSegments := segments[1:]
-				handleListEndpoint(w, r, restSegments)
+				auth.AuthRequest(handleListEndpoint)(w, r, restSegments)
+				return
 			default:
 				http.NotFound(w, r)
 				log.Printf("Unknown request: %s", requestPath)
@@ -133,13 +135,17 @@ func main() {
 		case http.MethodPost:
 			switch firstSegment {
 			case "upload":
-				restSegments := segments[1:]
-				handleUploadEndpoint(w, r, restSegments)
+				auth.AuthRequest(handleUploadEndpoint)(w, r, restSegments)
+				return
 			default:
 				http.NotFound(w, r)
 				log.Printf("Unknown request: %s", requestPath)
 				return
 			}
+		default:
+			http.NotFound(w, r)
+			log.Printf("Unknown request: %s", requestPath)
+			return
 		}
 	})
 
