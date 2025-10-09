@@ -7,23 +7,13 @@ import (
 	"os"
 	"path/filepath"
 	"simple-fs-web-service/auth"
+	"simple-fs-web-service/helpers"
 	listDirectories "simple-fs-web-service/routes/listDirectories"
 	uploadfile "simple-fs-web-service/routes/uploadFile"
 	"simple-fs-web-service/validators"
 	"strconv"
 	"strings"
 )
-
-func getBasePath() string {
-	basePath := os.Getenv("BASE_PATH")
-	homePath := os.Getenv("HOME")
-
-	if basePath == "" {
-		basePath = homePath
-	}
-
-	return basePath
-}
 
 func handleListEndpoint(w http.ResponseWriter, r *http.Request, restSegments []string) {
 	limitInt, limitErr := validators.ParseLimit(r.URL.Query().Get("limit"))
@@ -72,7 +62,7 @@ const MAX_UPLOAD_SIZE = 100 * 1024 * 1024
 func handleUploadEndpoint(w http.ResponseWriter, r *http.Request, restSegments []string) {
 	log.Printf("Upload endpoint called")
 	path := strings.Join(restSegments, "/")
-	uploadPath := filepath.Clean(filepath.Join(getBasePath(), path))
+	uploadPath := filepath.Clean(filepath.Join(helpers.GetBasePath(), path))
 	file, fileHeader, fileError := r.FormFile("file")
 
 	if fileError != nil {
