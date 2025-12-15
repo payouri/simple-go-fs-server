@@ -55,6 +55,7 @@ func isValidDirectoryPath(path string) bool {
 	if res := filepath.IsAbs(path); res {
 		return false
 	}
+
 	return path != ""
 }
 
@@ -93,7 +94,18 @@ func ListDirectory(params ListDirectoryParams) (ListDirectoryResponseSuccess, er
 	if validationResult := isValidDirectoryPath(path); !validationResult {
 		return ListDirectoryResponseSuccess{}, errors.New("invalid path")
 	}
-	fsStat, lStatError := fs.Lstat(os.DirFS(helpers.GetBasePath()), path)
+
+	resolvedPath, resolvePathError := helpers.ResolvePath(helpers.GetBasePath(), path)
+	if resolvePathError != nil {
+		return ListDirectoryResponseSuccess{}, resolvePathError
+	}
+	if !strings.HasPrefix(resolvedPath, helpers.GetBasePath()) {
+		return ListDirectoryResponseSuccess{}, errors.New("unauthorized path")
+	}
+
+	dirFs := os.DirFS(resolvedPath)
+
+	fsStat, lStatError := fs.Lstat(dirFs, ".")
 
 	if lStatError != nil {
 		return ListDirectoryResponseSuccess{}, lStatError
@@ -105,7 +117,7 @@ func ListDirectory(params ListDirectoryParams) (ListDirectoryResponseSuccess, er
 
 	var files = make([]SerializableFile, 0)
 
-	entries, readDirError := fs.ReadDir(os.DirFS(helpers.GetBasePath()), path)
+	entries, readDirError := fs.ReadDir(dirFs, ".")
 	if readDirError != nil {
 		return ListDirectoryResponseSuccess{}, errors.New("error while listing directory")
 	}

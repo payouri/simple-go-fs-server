@@ -46,8 +46,23 @@ type ApiKeyData struct {
 	ExpiresAt time.Time `json:"expiresAt"`
 }
 type ApiKeyStoreType struct {
-	IsValid        func(string) bool
-	GenerateApiKey func() (string, error)
+	IsValid           func(string) bool
+	GenerateApiKey    func() (string, error)
+	HasOneExistingKey func() bool
+}
+
+func saveSnapshotToFile(path string, keyMap map[string]ApiKeyData) error {
+	fileContent, marshallError := json.Marshal(keyMap)
+	if marshallError != nil {
+		return marshallError
+	}
+
+	writeError := os.WriteFile(API_KEY_STORE_FILE_PATH, fileContent, os.ModeExclusive)
+	if writeError != nil {
+		return writeError
+	}
+
+	return nil
 }
 
 func BuildApiKeyStore() ApiKeyStoreType {
@@ -77,6 +92,7 @@ func BuildApiKeyStore() ApiKeyStoreType {
 			log.Fatal("Error while unmarshalling file:", err)
 		}
 	}
+	defer file.Close()
 
 	return ApiKeyStoreType{
 		IsValid: func(s string) bool {
@@ -85,6 +101,11 @@ func BuildApiKeyStore() ApiKeyStoreType {
 			}
 
 			return keyMap[s].ExpiresAt.After(time.Now())
+		},
+		HasOneExistingKey: func() bool {
+			mapLen := len(keyMap)
+
+			return mapLen > 0
 		},
 		GenerateApiKey: func() (string, error) {
 			apiKey, err := GenerateApiKey()
@@ -95,6 +116,12 @@ func BuildApiKeyStore() ApiKeyStoreType {
 				ApiKey:    apiKey,
 				ExpiresAt: time.Now().Add(time.Hour * 24 * 7),
 			}
+
+			saveError := saveSnapshotToFile(API_KEY_STORE_FILE_PATH, keyMap)
+			if saveError != nil {
+				return "", saveError
+			}
+
 			return apiKey, nil
 		},
 	}

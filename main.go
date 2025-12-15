@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -57,6 +59,22 @@ func handleListEndpoint(w http.ResponseWriter, r *http.Request, restSegments []s
 	json.NewEncoder(w).Encode(response)
 }
 
+func handleDownloadEndpoint(w http.ResponseWriter, r *http.Request, restSegments []string) {
+	path := strings.Join(restSegments, "/")
+	downloadPath := filepath.Clean(filepath.Join(helpers.GetBasePath(), path))
+	file, fileError := os.Open(downloadPath)
+	if fileError != nil {
+		log.Printf("Error while opening file: %s", fileError.Error())
+		http.Error(w, fileError.Error(), http.StatusBadRequest)
+		return
+	}
+
+	defer file.Close()
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filepath.Base(downloadPath)))
+	io.Copy(w, file)
+}
+
 const MAX_UPLOAD_SIZE = 100 * 1024 * 1024
 
 func handleUploadEndpoint(w http.ResponseWriter, r *http.Request, restSegments []string) {
@@ -96,6 +114,16 @@ func handleUploadEndpoint(w http.ResponseWriter, r *http.Request, restSegments [
 
 func main() {
 	port := os.Getenv("PORT")
+
+	log.Printf("exist, %v", auth.ApiKeyStore.HasOneExistingKey())
+	if !auth.ApiKeyStore.HasOneExistingKey() {
+		_, generateKeyError := auth.ApiKeyStore.GenerateApiKey()
+
+		if generateKeyError != nil {
+			log.Fatal(generateKeyError)
+		}
+	}
+
 	if port == "" {
 		port = "5000"
 	}
@@ -116,6 +144,9 @@ func main() {
 			switch firstSegment {
 			case "list":
 				auth.AuthRequest(handleListEndpoint)(w, r, restSegments)
+				return
+			case "download":
+				auth.AuthRequest(handleDownloadEndpoint)(w, r, restSegments)
 				return
 			default:
 				http.NotFound(w, r)
