@@ -1,9 +1,10 @@
-package listDirectories
+package listDirectoriesRoute
 
 import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log"
 	"math"
 	"os"
 	"path/filepath"
@@ -52,7 +53,7 @@ func permStringToNumeric(permStr string) string {
 }
 
 func isValidDirectoryPath(path string) bool {
-	if res := filepath.IsAbs(path); res {
+	if filepath.IsAbs(path) {
 		return false
 	}
 
@@ -99,7 +100,12 @@ func ListDirectory(params ListDirectoryParams) (ListDirectoryResponseSuccess, er
 	if resolvePathError != nil {
 		return ListDirectoryResponseSuccess{}, resolvePathError
 	}
-	if !strings.HasPrefix(resolvedPath, helpers.GetBasePath()) {
+
+	isLegalPathResult, isLegalPathError := helpers.IsPathLegal(helpers.GetBasePath(), resolvedPath)
+	if isLegalPathError != nil {
+		return ListDirectoryResponseSuccess{}, errors.New("unable to check path")
+	}
+	if !isLegalPathResult {
 		return ListDirectoryResponseSuccess{}, errors.New("unauthorized path")
 	}
 
@@ -135,54 +141,70 @@ func ListDirectory(params ListDirectoryParams) (ListDirectoryResponseSuccess, er
 	})
 
 	var sortError error
-	slices.SortFunc(entries, func(entryI fs.DirEntry, entryJ fs.DirEntry) int {
-		if sortError != nil {
-			return 0
-		}
-		iInfo, iError := entryI.Info()
-		jInfo, jError := entryJ.Info()
-		items[entryI.Name()] = struct {
-			info  fs.FileInfo
-			err   error
-			entry fs.DirEntry
-		}{
-			info:  iInfo,
-			err:   iError,
-			entry: entryI,
-		}
-		items[entryJ.Name()] = struct {
-			info  fs.FileInfo
-			err   error
-			entry fs.DirEntry
-		}{
-			info:  jInfo,
-			err:   jError,
-			entry: entryJ,
-		}
-		if sortField == constants.ModifiedDate {
-			if iError != nil || jError != nil {
-				sortError = errors.New("error while listing directory")
+	if len(entries) > 1 {
+		slices.SortFunc(entries, func(entryI fs.DirEntry, entryJ fs.DirEntry) int {
+			if sortError != nil {
 				return 0
 			}
+			iInfo, iError := entryI.Info()
+			jInfo, jError := entryJ.Info()
+			items[entryI.Name()] = struct {
+				info  fs.FileInfo
+				err   error
+				entry fs.DirEntry
+			}{
+				info:  iInfo,
+				err:   iError,
+				entry: entryI,
+			}
+			items[entryJ.Name()] = struct {
+				info  fs.FileInfo
+				err   error
+				entry fs.DirEntry
+			}{
+				info:  jInfo,
+				err:   jError,
+				entry: entryJ,
+			}
+			if sortField == constants.ModifiedDate {
+				if iError != nil || jError != nil {
+					sortError = errors.New("error while listing directory")
+					return 0
+				}
+				if sortOrder == constants.Descending {
+					return int(jInfo.ModTime().Unix() - iInfo.ModTime().Unix())
+				}
+				if sortOrder == constants.Ascending {
+					return int(iInfo.ModTime().Unix() - jInfo.ModTime().Unix())
+				}
+			}
 			if sortOrder == constants.Descending {
-				return int(jInfo.ModTime().Unix() - iInfo.ModTime().Unix())
+				if entryI.Name() < entryJ.Name() {
+					return 1
+				}
+				return -1
 			}
-			if sortOrder == constants.Ascending {
-				return int(iInfo.ModTime().Unix() - jInfo.ModTime().Unix())
-			}
-		}
-		if sortOrder == constants.Descending {
-			if entryI.Name() < entryJ.Name() {
+
+			if entryI.Name() > entryJ.Name() {
 				return 1
 			}
 			return -1
-		}
+		})
+	} else if len(entries) == 1 {
+		entry := entries[0]
+		info, entryError := entry.Info()
+		sortError = entryError
 
-		if entryI.Name() > entryJ.Name() {
-			return 1
+		items[entries[0].Name()] = struct {
+			info  fs.FileInfo
+			err   error
+			entry fs.DirEntry
+		}{
+			info:  info,
+			err:   entryError,
+			entry: entry,
 		}
-		return -1
-	})
+	}
 
 	if sortError != nil {
 		return ListDirectoryResponseSuccess{}, sortError
@@ -196,13 +218,19 @@ func ListDirectory(params ListDirectoryParams) (ListDirectoryResponseSuccess, er
 		end = len(entries)
 	}
 	for _, dirEntry := range entries[offset:end] {
-		entry := items[dirEntry.Name()]
-		info, error := entry.info, entry.err
+		dirName := dirEntry.Name()
+		entry := items[dirName]
+		info, error, entryData := entry.info, entry.err, entry.entry
 		if error != nil {
 			return ListDirectoryResponseSuccess{}, errors.New("error while listing directory")
 		}
+		if entryData == nil {
+			log.Println(info, error)
+			continue
+		}
+
 		files = append(files, SerializableFile{
-			Name:         entry.entry.Name(),
+			Name:         entryData.Name(),
 			IsDir:        info.IsDir(),
 			BytesSize:    info.Size(),
 			Permissions:  permStringToNumeric(info.Mode().String()),

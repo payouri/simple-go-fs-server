@@ -19,6 +19,8 @@ type SaveFileUploadParams struct {
 	FileData   multipart.File
 }
 
+var FileExistsError = errors.New("file already exists")
+
 func SaveFileUpload(params SaveFileUploadParams) (SaveFileUploadResponseSuccess, error) {
 	uploadPath := params.UploadPath
 	file := params.FileData
@@ -29,7 +31,7 @@ func SaveFileUpload(params SaveFileUploadParams) (SaveFileUploadResponseSuccess,
 	filePath := filepath.Join(uploadPath, fileName)
 	if _, err := os.Stat(filePath); err == nil {
 		log.Printf("File %s already exists", filePath)
-		return SaveFileUploadResponseSuccess{}, errors.New("file already exists")
+		return SaveFileUploadResponseSuccess{}, FileExistsError
 	}
 	uploadDirStat, err := os.Stat(uploadPath)
 	if err != nil {

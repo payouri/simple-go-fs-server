@@ -2,25 +2,26 @@ package auth
 
 import (
 	"net/http"
+
+	"github.com/labstack/echo/v4"
 )
 
-func AuthRequest(next func(http.ResponseWriter, *http.Request, []string)) func(http.ResponseWriter, *http.Request, []string) {
-	return func(w http.ResponseWriter, r *http.Request, segments []string) {
-		authorizationHeader := r.Header.Get("Authorization")
+func AuthenticationMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(echoContext echo.Context) error {
+		authorizationHeader := echoContext.Request().Header.Get("Authorization")
 
 		if authorizationHeader == "" {
-			w.WriteHeader(http.StatusNetworkAuthenticationRequired)
-			w.Write([]byte("Authorization header is required"))
+			echoContext.String(http.StatusNetworkAuthenticationRequired, "Authorization header is required")
 
-			return
+			return nil
 		}
 		if !ApiKeyStore.IsValid(authorizationHeader) {
-			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte("Unauthorized"))
+			echoContext.String(http.StatusUnauthorized, "Unauthorized request")
 
-			return
+			return nil
 		}
 
-		next(w, r, segments)
+		next(echoContext)
+		return nil
 	}
 }
