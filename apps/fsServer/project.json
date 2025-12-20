@@ -1,0 +1,27 @@
+{
+  "name": "fs-server",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/front/src",
+  "projectType": "application",
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/fsServer",
+        "commands": [
+          "rm -rf ../../bin/fsServer",
+          "go build -o ../../bin/fsServer/main ."
+        ],
+        "parallel": false
+      }
+    },
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/fsServer",
+        "commands": ["wgo run ."]
+      },
+      "continuous": true
+    }
+  }
+}

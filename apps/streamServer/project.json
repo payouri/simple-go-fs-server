@@ -1,0 +1,27 @@
+{
+  "name": "stream-server",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/front/src",
+  "projectType": "application",
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/streamServer",
+        "commands": [
+          "rm -rf ../../bin/streamServer",
+          "go build -o ../../bin/streamServer/main ."
+        ],
+        "parallel": false
+      }
+    },
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/streamServer",
+        "commands": ["wgo run ."]
+      },
+      "continuous": true
+    }
+  }
+}

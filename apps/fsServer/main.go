@@ -10,9 +10,9 @@ import (
 )
 
 func createApp() {
-	envPort := os.Getenv("PORT")
+	envPort := os.Getenv("FS_SERVER_PORT")
 	if envPort == "" {
-		envPort = "5000"
+		envPort = "5008"
 	}
 	if !auth.ApiKeyStore.HasOneExistingKey() {
 		_, generateKeyError := auth.ApiKeyStore.GenerateApiKey()
