@@ -36,6 +36,7 @@ func DownloadEndpointRoute(echoContext echo.Context) error {
 		return nil
 	}
 	file, fileError := os.Open(resolvedFsPath)
+	fileStat, fileStatError := file.Stat()
 
 	if fileError != nil {
 		log.Printf("Error while opening file: %s", fileError.Error())
@@ -43,19 +44,17 @@ func DownloadEndpointRoute(echoContext echo.Context) error {
 
 		return fileError
 	}
+	if fileStatError != nil {
+		log.Printf("Error while getting file stat: %s", fileStatError.Error())
+		echoContext.String(http.StatusBadRequest, fileStatError.Error())
+
+		return fileStatError
+	}
 
 	defer file.Close()
 
-	// var FirstBytesFile []byte = make([]byte, 512)
-	// _, readError := file.Read(FirstBytesFile)
-	// if readError != nil {
-	// 	log.Printf("Error while reading file: %s", readError.Error())
-	// 	echoContext.String(http.StatusBadRequest, readError.Error())
-
-	// 	return readError
-	// }
-	// println(http.DetectContentType(FirstBytesFile))
 	echoContext.Response().Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", path.Base(resolvedFsPath)))
+	echoContext.Response().Header().Set("Content-Length", fmt.Sprintf("%d", fileStat.Size()))
 	echoContext.Stream(http.StatusOK, "application/octet-stream", file)
 
 	return nil

@@ -2,6 +2,7 @@ package routers
 
 import (
 	"fmt"
+	"media-stream-server/routes"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -27,6 +28,8 @@ func InitRouter(app *echo.Echo) {
 			return nil
 		}
 	})
+
+	app.GET(routes.STREAM_AUDIO_FILE_ROUTE_PATH, routes.StreamAudioFileRoute)
 
 	app.RouteNotFound("*", func(c echo.Context) error {
 		println("Path not found", c.Request().URL.Path)

@@ -15,9 +15,14 @@ func GetEnvConfig() ConfigType {
 	if Port == "" {
 		Port = "5001"
 	}
+
 	FsServerUrl := os.Getenv("FS_SERVER_URL")
 	FsServerPort := os.Getenv("FS_SERVER_PORT")
 	if FsServerUrl == "" {
+		if FsServerPort == "" {
+			FsServerPort = "5008"
+		}
+
 		FsServerUrl = "localhost:" + FsServerPort
 	}
 	FsServerApiKey := os.Getenv("FS_SERVER_API_KEY")

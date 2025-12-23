@@ -1,18 +1,24 @@
-package httpclient
+package httpClient
 
 import (
-	"io"
-	"media-stream-server/libs"
+	"fmt"
+	"log"
+	"media-stream-server/config"
 	"net/http"
+	"net/url"
 	"os"
-	"path"
 	"time"
 )
 
 func getFsServerUrl() string {
 	FS_SERVER_URL := os.Getenv("FS_SERVER_URL")
+	FS_SERVER_PORT := os.Getenv("FS_SERVER_PORT")
+
 	if FS_SERVER_URL == "" {
-		return "localhost:5000"
+		if FS_SERVER_PORT == "" {
+			FS_SERVER_PORT = "5000"
+		}
+		return "http://localhost" + ":" + FS_SERVER_PORT
 	}
 
 	return FS_SERVER_URL
@@ -23,7 +29,7 @@ func getFsServerApiKey() string {
 	return FS_SERVER_API_KEY
 }
 
-type StreamForeignMediaParams struct {
+type DownloadForeignMediaParams struct {
 	MediaId string `json:"media_id"`
 }
 
@@ -32,55 +38,62 @@ type BuildHttpClientParams struct {
 	fsServerApiKey string
 }
 type HttpClientType struct {
-	StreamForeignMedia func(params StreamForeignMediaParams) (string, error)
+	DownloadForeignMedia func(params DownloadForeignMediaParams) (*http.Response, error)
 }
 
-func buildStreamForeignMedia(dependencies BuildHttpClientParams) func(params StreamForeignMediaParams) (string, error) {
-	var endpointURL = path.Join(dependencies.fsServerUrl, "/download")
+func getResponseError(response *http.Response) error {
+	if response.StatusCode >= 400 {
+		return fmt.Errorf("Error while downloading foreign media, failed with status code %d", response.StatusCode)
+	}
+
+	return nil
+}
+
+func buildDownloadForeignMedia(dependencies BuildHttpClientParams) func(params DownloadForeignMediaParams) (*http.Response, error) {
+	var endpointURL, endpointURLError = url.JoinPath(dependencies.fsServerUrl, "/download")
+	if endpointURLError != nil {
+		panic(endpointURLError)
+	}
+
 	var client = &http.Client{
 		Timeout: time.Second * 10,
 	}
 
-	return func(params StreamForeignMediaParams) (string, error) {
-		mediaUrl := path.Join(endpointURL, params.MediaId)
+	return func(params DownloadForeignMediaParams) (*http.Response, error) {
+		mediaUrl, joinUrlError := url.JoinPath(endpointURL, params.MediaId)
+		if joinUrlError != nil {
+			return nil, joinUrlError
+		}
 
 		newRequest, errorRequest := http.NewRequest(http.MethodGet, mediaUrl, nil)
 		if errorRequest != nil {
-			return "", errorRequest
+			return nil, errorRequest
 		}
+
 		newRequest.Header.Set("Accept", "*/*")
-		newRequest.Header.Set("Authorization", dependencies.fsServerApiKey)
+		newRequest.Header.Set("Authorization", config.EnvConfig.FsServerApiKey)
 		newRequest.Header.Set("User-Agent", "Stream-Server/1.0.0")
 
 		response, errorResponse := client.Do(newRequest)
 		if errorResponse != nil {
-			return "", errorResponse
+			return nil, errorResponse
 		}
-		defer response.Body.Close()
-
-		fileWriter, fileWriterError := libs.GetTmpFileWriter(params.MediaId)
-		if fileWriterError != nil {
-			return "", fileWriterError
+		hasError := getResponseError(response)
+		if hasError != nil {
+			return nil, hasError
 		}
 
-		body, errorBody := io.ReadAll(response.Body)
-		if errorBody != nil {
-			return "", errorBody
-		}
+		log.Printf("Downloaded foreign media with id %s", params.MediaId)
 
-		_, errorWrite := fileWriter.Write(body)
-		if errorWrite != nil {
-			return "", errorWrite
-		}
-
-		return "", nil
+		return response, nil
 	}
 }
+
 func BuildHttpClient(dependencies BuildHttpClientParams) HttpClientType {
-	stream := buildStreamForeignMedia(dependencies)
+	download := buildDownloadForeignMedia(dependencies)
 
 	return HttpClientType{
-		StreamForeignMedia: stream,
+		DownloadForeignMedia: download,
 	}
 }
 
