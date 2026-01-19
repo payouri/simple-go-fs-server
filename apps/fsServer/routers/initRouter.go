@@ -8,19 +8,25 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 )
 
 var RouteMap = map[string]bool{}
 
 func InitRouter(app *echo.Echo) {
+	cors := middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: []string{"*://*"},
+	})
+	app.Use(cors)
 	app.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
 
 		return func(c echo.Context) error {
 			app.Logger.Print("Route called", c.Path())
 			routeId := fmt.Sprintf("%s_%s", c.Request().Method, c.Path())
 			startTime := time.Now()
+			app.Logger.Printf("Route called: %s", routeId)
 			if _, ok := RouteMap[routeId]; !ok {
-				app.Logger.Print("Route not found", c.Path())
+				app.Logger.Printf("Route not found: %s", c.Path())
 				c.String(http.StatusNotFound, "Not found")
 
 				return nil

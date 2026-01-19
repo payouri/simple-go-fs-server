@@ -184,7 +184,8 @@ func ListDirectory(params ListDirectoryParams) (ListDirectoryResponseSuccess, er
 			continue
 		}
 
-		files = append(files, helpers.OSStatToFileMetadata(dirEntry.Name(), info))
+		log.Println(dirEntry.Name())
+		files = append(files, helpers.OSStatToFileMetadata(strings.Join([]string{resolvedPath, dirName}, "/"), info))
 	}
 
 	maxPage := int(math.Ceil(float64(len(entries)) / float64(limit)))
