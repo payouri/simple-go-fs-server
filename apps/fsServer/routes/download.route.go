@@ -55,7 +55,5 @@ func DownloadEndpointRoute(echoContext echo.Context) error {
 
 	echoContext.Response().Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", path.Base(resolvedFsPath)))
 	echoContext.Response().Header().Set("Content-Length", fmt.Sprintf("%d", fileStat.Size()))
-	echoContext.Stream(http.StatusOK, "application/octet-stream", file)
-
-	return nil
+	return echoContext.Stream(http.StatusOK, "application/octet-stream", file)
 }

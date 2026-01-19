@@ -35,6 +35,7 @@ func InitRouter(app *echo.Echo) {
 	}, auth.AuthenticationMiddleware)
 	app.GET(routes.LIST_DIRECTORY_ROUTE_PATH, routes.ListEndpointRoute)
 	app.GET(routes.DOWNLOAD_ROUTE_PATH, routes.DownloadEndpointRoute)
+	app.GET(routes.GET_METADATA_ROUTE_PATH, routes.GetMetadataEndpointRoute)
 	app.POST(routes.UPLOAD_ROUTE_PATH, routes.UploadEndpointRoute)
 
 	app.RouteNotFound("*", func(c echo.Context) error {

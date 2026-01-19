@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"fmt"
 	routesHelpers "media-stream-server/routers/helpers"
 	streamAudioFileController "media-stream-server/routes/streamAudioFile"
 	"net/http"
@@ -26,13 +25,5 @@ func StreamAudioFileRoute(echoContext echo.Context) error {
 		return nil
 	}
 
-	defer streamResult.Close()
-
-	data := make([]byte, 16)
-	streamResult.Read(data)
-	fmt.Println(string(data))
-
-	echoContext.Stream(http.StatusAccepted, "application/octet-stream", streamResult)
-
-	return nil
+	return echoContext.Stream(http.StatusAccepted, "application/octet-stream", streamResult)
 }

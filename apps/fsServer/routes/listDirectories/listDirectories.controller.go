@@ -2,7 +2,6 @@ package listDirectoriesRoute
 
 import (
 	"errors"
-	"fmt"
 	"io/fs"
 	"log"
 	"math"
@@ -15,43 +14,6 @@ import (
 	"strings"
 )
 
-// convertPermissions converts a permission string like "rwxr-xr-x" to a numeric format like 755.
-func permStringToNumeric(permStr string) string {
-	permMap := map[rune]string{
-		'r': "4",
-		'w': "2",
-		'x': "1",
-		'-': "0",
-	}
-
-	var numericPerm string
-	for _, c := range permStr[1:] { // Skip the first character (e.g., 'd' in drwxr-xr-x)
-		numericPerm += permMap[c]
-	}
-
-	// Split into three parts and sum each part
-	user := numericPerm[0:3]
-	group := numericPerm[3:6]
-	others := numericPerm[6:9]
-
-	userSum := 0
-	for _, c := range user {
-		userSum += int(c - '0')
-	}
-
-	groupSum := 0
-	for _, c := range group {
-		groupSum += int(c - '0')
-	}
-
-	othersSum := 0
-	for _, c := range others {
-		othersSum += int(c - '0')
-	}
-
-	return fmt.Sprintf("%d%d%d", userSum, groupSum, othersSum)
-}
-
 func isValidDirectoryPath(path string) bool {
 	if filepath.IsAbs(path) {
 		return false
@@ -60,15 +22,8 @@ func isValidDirectoryPath(path string) bool {
 	return path != ""
 }
 
-type SerializableFile struct {
-	Name         string `json:"name"`
-	IsDir        bool   `json:"isDir"`
-	BytesSize    int64  `json:"bytesSize"`
-	LastModified string `json:"lastModified"`
-	Permissions  string `json:"permissions"`
-}
 type ListDirectoryResponseSuccess struct {
-	Files   []SerializableFile
+	Files   []helpers.FileMetadata
 	Total   int
 	MaxPage int
 	Page    int
@@ -121,7 +76,7 @@ func ListDirectory(params ListDirectoryParams) (ListDirectoryResponseSuccess, er
 		return ListDirectoryResponseSuccess{}, errors.New("path is not a directory")
 	}
 
-	var files = make([]SerializableFile, 0)
+	var files = make([]helpers.FileMetadata, 0)
 
 	entries, readDirError := fs.ReadDir(dirFs, ".")
 	if readDirError != nil {
@@ -220,22 +175,16 @@ func ListDirectory(params ListDirectoryParams) (ListDirectoryResponseSuccess, er
 	for _, dirEntry := range entries[offset:end] {
 		dirName := dirEntry.Name()
 		entry := items[dirName]
-		info, error, entryData := entry.info, entry.err, entry.entry
-		if error != nil {
+		info, entryError, entryData := entry.info, entry.err, entry.entry
+		if entryError != nil {
 			return ListDirectoryResponseSuccess{}, errors.New("error while listing directory")
 		}
 		if entryData == nil {
-			log.Println(info, error)
+			log.Println(info, entryError)
 			continue
 		}
 
-		files = append(files, SerializableFile{
-			Name:         entryData.Name(),
-			IsDir:        info.IsDir(),
-			BytesSize:    info.Size(),
-			Permissions:  permStringToNumeric(info.Mode().String()),
-			LastModified: info.ModTime().Format("2006-01-02 15:04:05"),
-		})
+		files = append(files, helpers.OSStatToFileMetadata(dirEntry.Name(), info))
 	}
 
 	maxPage := int(math.Ceil(float64(len(entries)) / float64(limit)))

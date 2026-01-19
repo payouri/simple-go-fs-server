@@ -18,6 +18,7 @@ export default defineConfig(() => ({
   // worker: {
   //  plugins: [],
   // },
+  envDir: './env',
   build: {
     outDir: './dist',
     emptyOutDir: true,

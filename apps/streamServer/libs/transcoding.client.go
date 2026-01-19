@@ -3,6 +3,7 @@ package libs
 import (
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 )
@@ -54,12 +55,16 @@ func buildInMemoryTranscodeAudio(dependencies BuildTranscodingClientParams) func
 		cmd := exec.Command(
 			"ffmpeg",
 			"-loglevel", "error", // Log level
-			"-vn",          // Disable video
+			"-vn", // Disable video
+			// "-ar", "44100", // Set audio sample rate
 			"-i", "pipe:0", // Read from stdin
-			"-f", AudioOutputFormat[params.OutputFormat], // Output format (e.g., "flac", "mp3", "aac")
-			// "-c:a", "flac", // Audio codec (e.g., "aac", "libmp3lame", "flac")
+			"-codec:a", "libmp3lame",
+			"-b:a", "32k",
+			"-f", AudioOutputFormat[params.OutputFormat], "pipe:1", // Output format (e.g., "flac", "mp3", "aac")
+			// "-ac", "2",
+			// "-c:a", "mp3", // Audio codec (e.g., "aac", "libmp3lame", "flac")
 			// "-b:a", "192k", // Bitrate
-			"-", // Write to stdout
+			// "-", // Write to stdout
 		)
 		cmd.Stdin = params.InputStream // FFmpeg reads from the pipe
 		cmd.Stdout = writer
@@ -71,6 +76,16 @@ func buildInMemoryTranscodeAudio(dependencies BuildTranscodingClientParams) func
 			return nil, fmt.Errorf("failed to start FFmpeg: %v", err)
 		}
 
+		go func() {
+			defer writer.Close() // Important to close the writer when done
+			defer params.InputStream.Close()
+
+			if err := cmd.Wait(); err != nil {
+				log.Printf("ffmpeg command finished with error: %v\n", err)
+			} else {
+				log.Println("ffmpeg command finished successfully")
+			}
+		}()
 		// Return the stdout reader (transcoded audio stream)
 		return reader, nil
 	}
