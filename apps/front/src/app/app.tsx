@@ -1,114 +1,59 @@
-import { useEffect, useRef, useState } from 'react';
-const CONFIG = {
-  fsServerURI: 'http://localhost:5008',
-  streamServerURI: 'http://localhost:5001',
-  apiKey: import.meta.env.VITE_FS_SERVER_API_KEY,
-} as const;
-
-const audioTypes = [
-  'audio/mpeg',
-  'audio/mp4',
-  'audio/ogg',
-  'audio/wav',
-  'audio/aac',
-  'audio/webm',
-];
-
-const fsServerClient = (function buildFsServerClient() {
-  const { fsServerURI, apiKey } = CONFIG;
-  if (!fsServerURI || !apiKey) {
-    throw new Error('Missing config');
-  }
-  function sanitizePath(path: string) {
-    return path.replace(/\/+/g, '/');
-  }
-
-  function buildGetFilesRequest() {
-    const mountPoint = new URL('list', fsServerURI);
-    console.log(mountPoint);
-    return async function getFilesRequest(path: string) {
-      let response: Response;
-      try {
-        const sanitizedPath = sanitizePath(`/${mountPoint.pathname}/${path}`);
-        response = await fetch(
-          `${mountPoint.protocol}//${mountPoint.host}${sanitizedPath}`,
-          {
-            headers: {
-              contentType: 'application/json',
-              Authorization: `${apiKey}`,
-            },
-          }
-        );
-      } catch (error) {
-        console.error(error);
-        return null;
-      }
-      if (!response.ok) {
-        console.error(response);
-        return null;
-      }
-      if (response.status > 299) {
-        console.error(response);
-        return null;
-      }
-      if (response.headers.get('content-type') !== 'application/json') {
-        console.error(response);
-        throw new Error('Invalid content type');
-      }
-
-      let json: any;
-      try {
-        json = await response.json();
-      } catch (error) {
-        console.error(error);
-        return null;
-      }
-
-      return json;
-    };
-  }
-
-  return {
-    getFiles: buildGetFilesRequest(),
-  };
-})();
-
-function useFetch(url: string) {
-  const request = useRef<Promise<Response>>(null);
-  const [data, setData] = useState<Response | null>(null);
-
-  useEffect(() => {
-    const audio = document.createElement('audio');
-
-    for (const type of audioTypes) {
-      console.log(type, audio.canPlayType(type));
-    }
-    if (!request.current) {
-      request.current = fetch(new URL(url), {
-        headers: {
-          Authorization: `${CONFIG.apiKey}`,
-        },
-      });
-      request.current.then((response) => {
-        setData(response);
-      });
-    }
-  }, [url]);
-  return data;
-}
-
-function useFsServerClient() {
-  const { current } = useRef(fsServerClient);
-
-  return current;
-}
+import { useLocation, useNavigate } from 'react-router-dom';
+import { FileList } from './components/FileList/FileList.component';
+import { useFiles } from './hooks/useFiles/useFiles.hook';
+import type { FileMetadata } from './hooks/useFsServerClient/useFsServerClient.hook';
+import { splitPath } from '../helpers/splitPath';
 
 export function App() {
-  useFetch(new URL('/stream', CONFIG.streamServerURI).toString());
-  const fsServerClient = useFsServerClient();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { pathname: path } = location;
+  const { getFiles, pagination, setFilesPagination } = useFiles({
+    path,
+    initialLimit: 20,
+    initialOffset: 0,
+  });
 
-  console.log(fsServerClient.getFiles('/Downloads'));
-  return <div>Hello World</div>;
+  function onPageChange(page: number) {
+    const newOffset = (page - 1) * pagination.limit;
+    if (newOffset !== pagination.offset) {
+      setFilesPagination({ offset: newOffset });
+    }
+  }
+
+  function onFileClick(file: FileMetadata) {
+    if (file.isDir) {
+      navigate(
+        {
+          pathname:
+            path === '/'
+              ? file.name
+              : [...splitPath(path), file.name].join('/'),
+        },
+        {
+          relative: 'route',
+        }
+      );
+      return;
+    }
+  }
+
+  const { data: getFilesData } = getFiles;
+  const { files = [], total = 0, page = 0, maxPage = 0 } = getFilesData || {};
+  return (
+    <div className="flex flex-col h-screen px-4 py-2">
+      <FileList
+        files={files}
+        totalFiles={total}
+        totalPages={maxPage}
+        currentPage={page}
+        isLoadingFiles={getFiles.isLoading}
+        path={decodeURIComponent(path)}
+        onFileClick={onFileClick}
+        onPageChange={onPageChange}
+      />
+    </div>
+  );
 }
 
 export default App;

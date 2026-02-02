@@ -13,23 +13,23 @@ type ConfigType struct {
 func GetEnvConfig() ConfigType {
 	Port := os.Getenv("PORT")
 	if Port == "" {
-		Port = "5001"
+		Port = "5008"
 	}
 
-	streamServerUrl := os.Getenv("STREAM_SERVER_URL")
-	streamServerPort := os.Getenv("STREAM_SERVER_PORT")
-	if streamServerUrl == "" {
-		if streamServerPort == "" {
-			streamServerPort = "5001"
+	FsServerUrl := os.Getenv("FS_SERVER_URL")
+	FsServerPort := os.Getenv("FS_SERVER_PORT")
+	if FsServerUrl == "" {
+		if FsServerPort == "" {
+			FsServerPort = "5008"
 		}
 
-		streamServerUrl = "localhost:" + streamServerPort
+		FsServerUrl = "localhost:" + FsServerPort
 	}
 	FsServerApiKey := os.Getenv("FS_SERVER_API_KEY")
 
 	return ConfigType{
 		Port:           Port,
-		FsServerUrl:    streamServerUrl,
+		FsServerUrl:    FsServerUrl,
 		FsServerApiKey: FsServerApiKey,
 	}
 }

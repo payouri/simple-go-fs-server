@@ -21,6 +21,16 @@ func detectMimeTypeFromExtension(extension string) string {
 		return "audio/aac"
 	case ".webm":
 		return "audio/webm"
+	case ".json":
+		return "application/json"
+	case ".js":
+		return "text/javascript"
+	case ".mjs":
+		return "text/javascript"
+	case ".css":
+		return "text/css"
+	case ".html":
+		return "text/html"
 	default:
 		return ""
 	}

@@ -34,7 +34,7 @@ func InitRouter(app *echo.Echo) {
 
 			next(c)
 			app.Logger.Print("Route executed", c.Path())
-			app.Logger.Print("Time taken", startTime.Sub(startTime))
+			app.Logger.Print("Time taken ", time.Since(startTime))
 
 			return nil
 		}
