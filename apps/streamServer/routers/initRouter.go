@@ -6,11 +6,16 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 )
 
 var RouteMap = map[string]bool{}
 
 func InitRouter(app *echo.Echo) {
+	cors := middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: []string{"*://*"},
+	})
+	app.Use(cors)
 	app.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
 
 		return func(c echo.Context) error {

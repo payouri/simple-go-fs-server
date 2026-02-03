@@ -1,5 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import { fsServerClient } from '../useFsServerClient/useFsServerClient.hook';
+import { useRef } from 'react';
+import {
+  fsServerClient,
+  type GetFilesResponse200,
+} from '../useFsServerClient/useFsServerClient.hook';
 import { useURLState, type UseURLStateReturn } from '../useURLState';
 
 export type UseFilesParams = {
@@ -38,6 +42,7 @@ export function useFiles(params: UseFilesParams) {
       offset: state.offset ? parseInt(state.offset, 10) : initialOffset,
     })
   );
+  const metadata = useRef<Omit<GetFilesResponse200, 'files'>>(null);
 
   const getFilesQueryResult = useQuery({
     queryKey: [GET_FILES_QUERY_KEY, path, limit, offset],
@@ -46,12 +51,22 @@ export function useFiles(params: UseFilesParams) {
         limit,
         offset,
       });
+      if (!response) {
+        throw new Error('Invalid response');
+      }
+
+      metadata.current = {
+        total: response.total,
+        maxPage: response.maxPage,
+        page: response.page,
+      };
 
       return response;
     },
   });
 
   return {
+    metadata: metadata.current,
     getFiles: getFilesQueryResult,
     setFilesPagination: (params: { limit?: number; offset?: number }) => {
       if (

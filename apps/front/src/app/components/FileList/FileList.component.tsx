@@ -14,9 +14,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { FileMetadata } from '../../hooks/useFsServerClient/useFsServerClient.hook';
+import type { FileMetadata } from '@/entities/File.types';
+import { splitPath } from '@/helpers/splitPath';
 import { DirectoryBreadcrumb } from '../DirectoryBreadcrumb/DirectoryBreadcrumb.component';
-import { splitPath } from '../../../helpers/splitPath';
+import { MainButton } from './components/MainButton.component';
 
 export type FileListProps = {
   path: string;
@@ -46,14 +47,16 @@ function LoadingState(props: LoadingStateProps) {
       }}
     >
       <tr>
-        <div
-          className="flex items-center justify-center top-0 left-0 right-0 bottom-0"
-          style={{
-            position: 'absolute',
-          }}
-        >
-          Loading...
-        </div>
+        <td>
+          <div
+            className="flex items-center justify-center top-0 left-0 right-0 bottom-0"
+            style={{
+              position: 'absolute',
+            }}
+          >
+            Loading...
+          </div>
+        </td>
       </tr>
     </TableBody>
   );
@@ -88,6 +91,7 @@ export function FileList(props: FileListProps) {
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
+            <TableHead />
           </TableRow>
         </TableHeader>
         <LoadingState isLoadingFiles={isLoadingFiles} />
@@ -95,12 +99,15 @@ export function FileList(props: FileListProps) {
           {files.map((file, index) => (
             <TableRow key={index} onClick={() => onFileClick(file)}>
               <TableCell>{file.name}</TableCell>
+              <TableCell>
+                <MainButton file={file} path={path} />
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
       {/* </div> */}
-      <Pagination>
+      <Pagination className="flex-[0_0_auto]">
         <PaginationContent>
           <PaginationItem>
             <PaginationPrevious

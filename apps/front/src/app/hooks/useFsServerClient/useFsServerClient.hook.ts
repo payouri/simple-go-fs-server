@@ -1,23 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { audioTypes, CONFIG } from '../../../config';
+import type { FileMetadata } from '../../../entities/File.types';
 
-export type FileMetadata =
-  | {
-      isDir: true;
-      name: string;
-      lastModified: string;
-      permissions: `${number}${number}${number}`;
-    }
-  | {
-      isDir: false;
-      name: string;
-      bytesSize: number;
-      lastModified: string;
-      mimeType: string;
-      permissions: `${number}${number}${number}`;
-    };
-
-type GetFilesResponse200 = {
+export type GetFilesResponse200 = {
   files: FileMetadata[];
   total: number;
   page: number;
@@ -35,7 +20,6 @@ export const fsServerClient = (function buildFsServerClient() {
 
   function buildGetFilesRequest() {
     const mountPoint = new URL('list', fsServerURI);
-    console.log(mountPoint);
     return async function getFilesRequest(
       path: string,
       paginationOptions?: {

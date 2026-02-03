@@ -1,6 +1,8 @@
 package httpClient
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"media-stream-server/config"
@@ -38,6 +40,13 @@ type DownloadForeignMediaParams struct {
 type GetForeignMediaMetadataParams struct {
 	MediaId string `json:"media_id"`
 }
+type GetForeignMediaMetadataResponse struct {
+	Permissions string
+	MimeType    string
+	IsDir       bool
+	Name        string
+	BytesSize   int64
+}
 
 type BuildHttpClientParams struct {
 	fsServerUrl    string
@@ -45,7 +54,7 @@ type BuildHttpClientParams struct {
 }
 type HttpClientType struct {
 	DownloadForeignMedia    func(params DownloadForeignMediaParams) (*http.Response, error)
-	GetForeignMediaMetadata func(params GetForeignMediaMetadataParams) (*http.Response, error)
+	GetForeignMediaMetadata func(params GetForeignMediaMetadataParams) (GetForeignMediaMetadataResponse, error)
 }
 
 func getResponseError(response *http.Response) error {
@@ -56,7 +65,7 @@ func getResponseError(response *http.Response) error {
 	return nil
 }
 
-func buildGetForeignMediaMetadata(dependencies BuildHttpClientParams) func(params GetForeignMediaMetadataParams) (*http.Response, error) {
+func buildGetForeignMediaMetadata(dependencies BuildHttpClientParams) func(params GetForeignMediaMetadataParams) (GetForeignMediaMetadataResponse, error) {
 	var endpointURL, endpointURLError = url.JoinPath(dependencies.fsServerUrl, "/metadata")
 	if endpointURLError != nil {
 		panic(endpointURLError)
@@ -66,15 +75,15 @@ func buildGetForeignMediaMetadata(dependencies BuildHttpClientParams) func(param
 		Timeout: time.Second * 10,
 	}
 
-	return func(params GetForeignMediaMetadataParams) (*http.Response, error) {
+	return func(params GetForeignMediaMetadataParams) (GetForeignMediaMetadataResponse, error) {
 		mediaUrl, joinUrlError := url.JoinPath(endpointURL, params.MediaId)
 		if joinUrlError != nil {
-			return nil, joinUrlError
+			return GetForeignMediaMetadataResponse{}, joinUrlError
 		}
 
 		newRequest, errorRequest := http.NewRequest(http.MethodGet, mediaUrl, nil)
 		if errorRequest != nil {
-			return nil, errorRequest
+			return GetForeignMediaMetadataResponse{}, errorRequest
 		}
 
 		newRequest.Header.Set("Accept", "application/json")
@@ -82,17 +91,28 @@ func buildGetForeignMediaMetadata(dependencies BuildHttpClientParams) func(param
 		newRequest.Header.Set("User-Agent", "USER_AGENT")
 
 		response, errorResponse := client.Do(newRequest)
+
 		if errorResponse != nil {
-			return nil, errorResponse
+			return GetForeignMediaMetadataResponse{}, errorResponse
 		}
+		defer response.Body.Close() // Close the response body
+
 		hasError := getResponseError(response)
 		if hasError != nil {
-			return nil, hasError
+			return GetForeignMediaMetadataResponse{}, hasError
 		}
 
 		log.Printf("Downloaded foreign media with id %s", params.MediaId)
+		if response.Header.Get("Content-Type") != "application/json" {
+			return GetForeignMediaMetadataResponse{}, errors.New("Invalid response type")
+		}
 
-		return response, nil
+		var metadataResponse GetForeignMediaMetadataResponse
+		if err := json.NewDecoder(response.Body).Decode(&metadataResponse); err != nil {
+			return GetForeignMediaMetadataResponse{}, err
+		}
+
+		return metadataResponse, nil
 	}
 }
 

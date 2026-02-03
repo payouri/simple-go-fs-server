@@ -5,9 +5,11 @@ import {
   BreadcrumbLink,
   BreadcrumbSeparator,
   BreadcrumbPage,
+  BreadcrumbReactRouterLink,
 } from '@/components/ui/breadcrumb';
 import { ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { Fragment } from 'react/jsx-runtime';
 
 export type BreadcrumbsProps = {
   path: string[];
@@ -33,10 +35,8 @@ export function DirectoryBreadcrumb(props: BreadcrumbsProps) {
     },
   } = props;
 
-  console.log({ path });
-
   return (
-    <Breadcrumb>
+    <Breadcrumb className="flex-[0_0_auto]">
       <BreadcrumbList>
         {showHome ? (
           <BreadcrumbItem>
@@ -51,23 +51,21 @@ export function DirectoryBreadcrumb(props: BreadcrumbsProps) {
           <BreadcrumbSeparator>{separator}</BreadcrumbSeparator>
         ) : null}
         {path.map((item, index) => (
-          <>
-            <BreadcrumbItem key={`${item}-${index}`}>
-              <BreadcrumbLink href="#">
-                <Link
-                  to={{
-                    pathname: path.slice(0, index + 1).join('/'),
-                  }}
-                  relative="route"
-                >
-                  <BreadcrumbPage>{item}</BreadcrumbPage>
-                </Link>
-              </BreadcrumbLink>
+          <Fragment key={`${item}-${index}`}>
+            <BreadcrumbItem>
+              <BreadcrumbReactRouterLink
+                to={{
+                  pathname: path.slice(0, index + 1).join('/'),
+                }}
+                relative="route"
+              >
+                <BreadcrumbPage>{item}</BreadcrumbPage>
+              </BreadcrumbReactRouterLink>
             </BreadcrumbItem>
             {index < path.length - 1 && (
               <BreadcrumbSeparator>{separator}</BreadcrumbSeparator>
             )}
-          </>
+          </Fragment>
         ))}
       </BreadcrumbList>
     </Breadcrumb>

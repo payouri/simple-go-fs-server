@@ -20,7 +20,7 @@ func StreamAudioFile(params StreamAudioFileParams) (*io.PipeReader, error) {
 	transcodeResult, transcodeError := libs.TranscodingClient.InMemoryTranscodeAudio(libs.InMemoryTranscodeAudioParams{
 		InputStream:   response.Body,
 		ContentLength: response.ContentLength,
-		OutputFormat:  libs.MP3,
+		OutputFormat:  libs.MP4,
 	})
 	if transcodeError != nil {
 		log.Printf("transcodeError %v", transcodeError)

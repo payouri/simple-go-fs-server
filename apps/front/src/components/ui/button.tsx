@@ -30,6 +30,9 @@ const buttonVariants = cva(
         true: 'cursor-not-allowed opacity-50 pointer-events-none',
         false: 'cursor-pointer',
       },
+      disableHover: {
+        true: 'hover:bg-transparent',
+      },
     },
     defaultVariants: {
       variant: 'default',

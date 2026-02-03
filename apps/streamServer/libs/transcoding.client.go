@@ -20,11 +20,13 @@ type AudioFormat int
 
 const (
 	MP3 AudioFormat = iota
+	MP4
 	AAC
 	FLAC
 )
 
 var AudioOutputFormat = map[AudioFormat]string{
+	MP4:  "mp4",
 	MP3:  "mp3",
 	AAC:  "aac",
 	FLAC: "flac",
@@ -58,9 +60,9 @@ func buildInMemoryTranscodeAudio(dependencies BuildTranscodingClientParams) func
 			"-vn", // Disable video
 			// "-ar", "44100", // Set audio sample rate
 			"-i", "pipe:0", // Read from stdin
-			"-codec:a", "libmp3lame",
-			"-b:a", "32k",
-			"-f", AudioOutputFormat[params.OutputFormat], "pipe:1", // Output format (e.g., "flac", "mp3", "aac")
+			"-c:a", "libopus", // Audio codec (e.g., "aac", "libmp3lame", "flac")
+			// "-b:a", "128k",
+			"-f", "webm", "pipe:1", // Output format (e.g., "flac", "mp3", "aac")
 			// "-ac", "2",
 			// "-c:a", "mp3", // Audio codec (e.g., "aac", "libmp3lame", "flac")
 			// "-b:a", "192k", // Bitrate
